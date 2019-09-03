@@ -1,0 +1,113 @@
+#Comparisons of sealevel trend for Ringsend, Dublin Bay and Howth Harbour should be done using two different approaches: 
+# Using Sea level raw data
+# Using low and high sea levels extracted from the water level raw data
+
+#1- USING SEA LEVEL RAW DATA:1️⃣
+
+library(MASS)
+library(ISLR)
+library(caret)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(Jmisc)
+
+#Reading raw datasets:💡📌📌📌
+#Dublin: 💡📌📌📌
+
+dublin_port <- read_csv("Desktop/PhD/Data/dublin_port.csv")
+
+setwd("~/Users/amin/Desktop/PhD/Files")
+ldf <- list() # creates a list
+listcsv <- dir(pattern = "*.csv" | pattern = "*.xlsx") # creates the list of all the csv files in the directory
+for (k in 1:length(listcsv)){
+ ldf[[k]] <- read.csv(listcsv[k])
+}
+str(ldf[[1]]) 
+
+#Ringsend: 💡📌📌📌
+
+Rings = rbind(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13,R14,R15,
+R16,R17,R18,R19,R20,R21,R22,R27,R28,R29,R30,R31,R32,R33,R34,R35,R36)#R23, R24, R25, R26 are excluded assuming to be bad data
+
+Rings_2017 <- Rings %>% 
+  filter(year(time) == 2017) # Selecting only year 2017 to be pruned 
+  
+Rings_2017 <- Rings_2017 %>% 
+  filter(month(time) != 5 & month(time) != 8) #Months 5 & 8 are also decided to be removed after data visualization 
+  
+Rings <- Rings %>% 
+  filter(year(time) != 2017) #Removing faulty year 2017 data
+  
+Rings <- rbind(Rings, Rings_2017) #Adding the pruned year 2017 data
+  
+#Howth Harbour💡📌📌📌
+
+howth_harbour <- read_csv("Desktop/PhD/Data/howth_harbour.csv")
+
+
+#Reshaping the datasets:💡📌📌📌 
+
+Dublin <- dublin_port[,c(3:5)]
+Howth <- howth_harbour[,c(3:5)]
+
+names(Dublin)[names(Dublin) == "Water_Level_OD_Malin"] <- "m"
+names(Howth)[names(Howth) == "Water_Level_OD_Malin"] <- "m"
+  
+Rings$station_id <- "Ringsend"
+Rings <- Rings[,c(1,3,2)]
+
+
+#Obtaining annual trends for each dataset:💡📌📌📌
+
+Dublin <- Dublin %>%
+  group_by(time = floor_date(time, "month"))%>%
+  summarise(m = mean(m), station_id = "Dublin")
+
+Dublin <- Dublin %>%
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(m = mean(m), station_id = "Dublin")
+
+Howth <- Howth %>%   #first monthly values should be calculated
+  group_by(time = floor_date(time, "month"))%>%
+  summarise(m = mean(m), station_id = "Howth")
+
+Howth <- Howth %>%   #from monthly values we can obtain annual values
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(m = mean(m), station_id = "Howth")
+  
+Rings <- Rings %>%   #first monthly values should be calculated
+  group_by(time = floor_date(time, "month"))%>%
+  summarise(m = mean(m), station_id = "Ringsend")
+
+Rings <- Rings %>%   #from monthly values we can obtain annual values
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(m = mean(m), station_id = "Ringsend")
+  
+# Removing year 2019 (which is the last row in all datasets) for not being complete:💡📌📌📌
+
+Howth <- Howth [-14,]
+Dublin <- Dublin [-13,]
+Rings <- Rings [-7,]
+
+#Merging datasets: 💡📌📌📌
+
+Sealevel = rbind(Howth, Rings, Dublin)
+
+#Adjusting Dublin & Howth data to LAT: 💡📌📌📌
+
+Howth$m <- Howth$m + 2.599
+Dublin$m <- Dublin$m + 2.599
+
+#Ploting results: 💡📌📌📌
+
+ggplot(Sealevel, aes(x = time, y = m, colour = as.factor(station_id))) +
+  geom_point() +
+  xlab('Year') +
+  ylab('Mean Tide Level') +
+  stat_smooth() +
+  scale_color_discrete(name="Location")
+
+#1- USING SEA MEAN TIDE LEVEL: 2️⃣
+
+#raw data have been read in the previous section 💡📌📌📌 
