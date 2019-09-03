@@ -248,6 +248,7 @@ HL.dublin <- HL(level = dublin_port[,5], time = dublin_port[,3])
 
 #Checking if the numbers of lows and highs are not very different for each month is important 💡📌📌📌
 #Cheking if no year has more than 3 missing months should be considered 💡📌📌📌
+# Dublin : 💡📌📌📌
 
 mlw <- HL.dublin %>% 
     group_by(time = format(time, "%Y-%m")) %>% 
@@ -280,4 +281,63 @@ mlw <- HL.dublin %>%
     
    dublin_annual <- dublin_annual[-c(12,13),] #years 2018 and 2019 are removed because they don't have enough months 💡📌📌📌
   
+  # Howth harbour : 💡📌📌📌
   
+  mlw <- HL.howth %>% 
+  group_by(time = format(time, "%Y-%m")) %>% 
+  filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>%
+  filter(tide == 'L') %>%
+  summarize(mlw = mean(level)) 
+
+ mhw <- HL.howth %>% 
+  group_by(time = format(time, "%Y-%m")) %>% 
+  filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>%
+  filter(tide == 'H') %>%
+  summarize(mhw = mean(level))
+
+howth_monthly <- mlw
+howth_monthly$mhw <- mhw$mhw
+howth_monthly <- howth_monthly %>% mutate(mtl = (mhw + mlw)/2)
+
+test <- HL.howth %>%   
+  group_by(time = floor_date(time, "month")) %>%
+  summarise(level = mean(level))
+
+howth_monthly$time <- test$time
+
+howth_annual <- howth_monthly %>% 
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(mlw = mean(mlw), mhw = mean(mhw), mtl = mean(mtl))
+
+howth_annual <- howth_annual[-c(1,13,14),]
+
+# Ringsend: 💡📌📌📌
+
+mlw <- HL.rings %>% 
+  group_by(time = format(time, "%Y-%m")) %>% 
+  filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>%
+  filter(tide == 'L') %>%
+  summarize(mlw = mean(level)) 
+
+mhw <- HL.rings %>% 
+  group_by(time = format(time, "%Y-%m")) %>% 
+  filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>%
+  filter(tide == 'H') %>%
+  summarize(mhw = mean(level))
+
+rings_monthly <- mlw
+rings_monthly$mhw <- mhw$mhw
+rings_monthly <- rings_monthly %>% mutate(mtl = (mhw + mlw)/2)
+
+test <- HL.rings %>%   
+  group_by(time = floor_date(time, "month")) %>%
+  filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>% 
+  summarise(level = mean(level))
+
+rings_monthly$time <- test$time
+
+rings_annual <- rings_monthly %>% 
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(mlw = mean(mlw), mhw = mean(mhw), mtl = mean(mtl))
+  
+  # The annual sets are ready and now they should be combined and plotted together:💡📌📌📌
