@@ -1,8 +1,7 @@
 #Comparisons of sealevel trend for Ringsend, Dublin Bay and Howth Harbour should be done using two different approaches: 
 # Using Sea level raw data
 # Using low and high sea levels extracted from the water level raw data
-
-#1- USING SEA LEVEL RAW DATA:1️⃣
+# Reading Libraries 📕
 
 library(MASS)
 library(ISLR)
@@ -12,8 +11,131 @@ library(ggplot2)
 library(lubridate)
 library(Jmisc)
 
-#Reading raw datasets:💡📌📌📌
-#Dublin: 💡📌📌📌
+#' Reading troyhill/VulnToolkit package  📕
+#' @title Extracts high and low tides from a record of water levels
+#' 
+#' @description Extracts high and low tides from a record of water levels
+#' 
+#' @param level a numeric vector of water levels
+#' @param time a vector (numeric or POSIX*) indicating the time of water 
+#' level measurements. Units must be minutes.
+#' @param period a single numeric or integer estimate of tidal period 
+#' (full tidal cycle). Units must be hours.
+#' @param phantom a protective measure taken to prevent the inclusion of an 
+#' artificial high or low tide at the end of the dataset. If the water level 
+#' measurements end precisely at a low or high tide, this can be changed to FALSE.
+#' @param tides is used to optionally subset the output to include 
+#' only high or low tides. This argument can be 'all' (default), 'H', or 'L'
+#' @param semidiurnal logical. If TRUE, higher- and lower- high/low tides are reported in a separate column called 'tide2'
+#' 
+#' @return a dataframe of tide levels, associated time stamps, and tide 
+#' type ('H' or 'L').
+#' 
+#' @seealso \code{\link{HL.plot}}
+#' 
+#' 
+#' @references \url{http://wetlandsandr.wordpress.com/}
+#' 
+#' @examples data(NL_6min_2013)
+#' HL.NL <- VulnToolkit::HL(level = NL_6min_2013[,2], time = NL_6min_2013[,1])
+#' head(HL.NL)
+#' @export
+
+HL <- function(level, time, period = 13, phantom = TRUE, tides = "all",
+               semidiurnal = TRUE) {
+  
+  # Check arguments
+  if(is.numeric(level) == FALSE) 
+    stop("invalid entry: 'level' must be numeric")
+  
+  if(is.numeric(time) == FALSE & class(time)[1] != "POSIXlt" & class(time)[1] != "POSIXct" )
+    stop("invalid entry: 'time' must be numeric or POSIX*")
+  
+  if(is.numeric(period) == FALSE & class(period) != "integer") 
+    stop("invalid entry: 'period' must be numeric")
+  
+  if(tides != "all" & tides != "L" & tides != "H") 
+    stop("invalid entry: 'tides' must be 'all', 'H', or 'L'")
+  if(!is.logical(semidiurnal)) {
+    stop("'semidiurnal' argument should be TRUE/FALSE - indicates whether higher- and lower- high/low tides should be identified. /n")
+  }
+  
+  # Set locals
+  partial.tide <- period * 60 * 60            # seconds
+  t.int <- as.numeric( time[2] ) - as.numeric( time[1] )      # seconds
+  wll.2 <- data.frame(1:length(level), level, time)
+  width <- partial.tide / t.int
+  
+  # Find high tides
+  t.x <- which.max(level[1:(1 + width)])
+  
+  for(i in 1:length(level)) {
+    if(!is.na(t.x[i] + 0.5 * width)) {
+      temp <- which.max(level[(t.x[i] + 0.5 * width) : (t.x[i] + 1.25 * width)])
+      val <- temp - 1 + (t.x[i] + 0.5 * width)
+      t.x <- rbind(t.x, val)
+    } else t.x <- t.x 
+  }
+  
+  ht <- wll.2[t.x[,1], ]          # filters high tides from initial dataset, including dates/times
+  ht$tide <- rep("H", nrow(ht))
+  
+  
+  # Repeat process for low tides
+  t.y <- which.min(level[1:(1 + width)])
+  
+  for(i in 1:length(level)) {
+    if(!is.na(t.y[i] + 0.5 * width)) {
+      temp <- which.min(level[(t.y[i] + 0.5 * width) : (t.y[i] + 1.25 * width)])
+      val <- temp - 1 + (t.y[i] + 0.5 * width)
+      t.y <- rbind(t.y, val)
+    } else t.y <- t.y 
+  }
+  
+  lt <- wll.2[t.y[,1], ]          
+  lt$tide <- rep("L", nrow(lt))
+  
+  hl <- rbind(ht, lt)
+  hl <- hl[order(hl[,1]),]    
+  hl <- hl[,-1]               
+  
+  if(semidiurnal) {
+    ### identify higher- and lower- high/low tides
+    days   <- substr(hl$time, 1, 10) # weak point - assumes YYYY-MM-DD format
+    hl[, "tide2"] <- NA
+    
+    for (i in 1:length(unique(days))) {
+      numLowTides  <- sum(!is.na(hl$level[(days == unique(days)[i]) & (hl$tide %in% "L")]))
+      numHighTides <- sum(!is.na(hl$level[(days == unique(days)[i]) & (hl$tide %in% "H")]))
+      if (numHighTides == 2) {
+        # find higher & lower high tides
+        hh.tide <- which.max(hl$level[(days == unique(days)[i]) & (hl$tide %in% "H")])
+        lh.tide <- which.min(hl$level[(days == unique(days)[i]) & (hl$tide %in% "H")])
+        
+        # define new tides
+        hl[, "tide2"][(days == unique(days)[i]) & (hl$tide %in% "H")][hh.tide] <- "HH"
+        hl[,"tide2"][(days == unique(days)[i]) & (hl$tide %in% "H")][lh.tide] <- "LH"
+      } else if (numHighTides == 1) {
+        ### define value based on previous or subsequent values
+        hl[,"tide2"][(days == unique(days)[i]) & (hl$tide %in% "H")] <- rev(hl[,"tide2"][(hl$tide %in% "H") & (!is.na(hl[,"tide2"]))])[2] # copy the second most recent HH/LH value (may bewrong if there's a gap in the hl)
+      }
+      
+      if (numLowTides == 2) {
+        hl.tide <- which.max(hl$level[(days == unique(days)[i]) & (hl$tide %in% "L")])
+        ll.tide <- which.min(hl$level[(days == unique(days)[i]) & (hl$tide %in% "L")])
+        
+        hl[,"tide2"][(days == unique(days)[i]) & (hl$tide %in% "L")][hl.tide] <- "HL"
+        hl[,"tide2"][(days == unique(days)[i]) & (hl$tide %in% "L")][ll.tide] <- "LL"
+      } else if (numLowTides == 1) {
+        ### define value based on previous or subsequent values
+        hl[,"tide2"][(days == unique(days)[i]) & (hl$tide %in% "L")] <- rev(hl[,"tide2"][(hl$tide %in% "L") & (!is.na(hl[,"tide2"]))])[2]
+      }
+    }
+  }
+
+##1- USING SEA LEVEL RAW DATA:1️⃣
+##Reading raw datasets:💡📌📌📌
+##Dublin: 💡📌📌📌
 
 dublin_port <- read_csv("Desktop/PhD/Data/dublin_port.csv")
 
@@ -25,7 +147,7 @@ for (k in 1:length(listcsv)){
 }
 str(ldf[[1]]) 
 
-#Ringsend: 💡📌📌📌
+##Ringsend: 💡📌📌📌
 
 Rings = rbind(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13,R14,R15,
 R16,R17,R18,R19,R20,R21,R22,R27,R28,R29,R30,R31,R32,R33,R34,R35,R36)#R23, R24, R25, R26 are excluded assuming to be bad data
@@ -46,7 +168,7 @@ Rings <- rbind(Rings, Rings_2017) #Adding the pruned year 2017 data
 howth_harbour <- read_csv("Desktop/PhD/Data/howth_harbour.csv")
 
 
-#Reshaping the datasets:💡📌📌📌 
+##Reshaping the datasets:💡📌📌📌 
 
 Dublin <- dublin_port[,c(3:5)]
 Howth <- howth_harbour[,c(3:5)]
@@ -58,7 +180,7 @@ Rings$station_id <- "Ringsend"
 Rings <- Rings[,c(1,3,2)]
 
 
-#Obtaining annual trends for each dataset:💡📌📌📌
+##Obtaining annual trends for each dataset:💡📌📌📌
 
 Dublin <- Dublin %>%
   group_by(time = floor_date(time, "month"))%>%
@@ -84,22 +206,22 @@ Rings <- Rings %>%   #from monthly values we can obtain annual values
   group_by(time = floor_date(time, "year"))%>%
   summarise(m = mean(m), station_id = "Ringsend")
   
-# Removing year 2019 (which is the last row in all datasets) for not being complete:💡📌📌📌
+## Removing year 2019 (which is the last row in all datasets) for not being complete:💡📌📌📌
 
 Howth <- Howth [-14,]
 Dublin <- Dublin [-13,]
 Rings <- Rings [-7,]
 
-#Merging datasets: 💡📌📌📌
+##Merging datasets: 💡📌📌📌
 
 Sealevel = rbind(Howth, Rings, Dublin)
 
-#Adjusting Dublin & Howth data to LAT: 💡📌📌📌
+##Adjusting Dublin & Howth data to LAT: 💡📌📌📌
 
 Howth$m <- Howth$m + 2.599
 Dublin$m <- Dublin$m + 2.599
 
-#Ploting results: 💡📌📌📌
+##Ploting results: 💡📌📌📌
 
 ggplot(Sealevel, aes(x = time, y = m, colour = as.factor(station_id))) +
   geom_point() +
@@ -108,6 +230,114 @@ ggplot(Sealevel, aes(x = time, y = m, colour = as.factor(station_id))) +
   stat_smooth() +
   scale_color_discrete(name="Location")
 
-#1- USING SEA MEAN TIDE LEVEL: 2️⃣
+##1- USING SEA MEAN TIDE LEVEL: 2️⃣
 
-#raw data have been read in the previous section 💡📌📌📌 
+# raw data have been read in the previous section 💡📌📌📌
+# Extracting low and high tides using HL function 💡📌📌📌
+
+howth_harbour <- as.data.frame(howth_harbour)
+HL.howth <- HL(level = howth_harbour[,5], time = howth_harbour[,3])
+
+Rings <- as.data.frame(Rings)
+HL.rings <- HL(level = Rings[,5], time = howth_harbour[,3])
+
+dublin_port <- as.data.frame(dublin_port)
+HL.dublin <- HL(level = dublin_port[,5], time = dublin_port[,3])
+
+## Obtaining Monthly and annual mlw, mhw and mtl: 💡📌📌📌
+
+#Checking if the numbers of lows and highs are not very different for each month is important 💡📌📌📌
+#Cheking if no year has more than 3 missing months should be considered 💡📌📌📌
+# Dublin : 💡📌📌📌
+
+mlw <- HL.dublin %>% 
+    group_by(time = format(time, "%Y-%m")) %>% 
+    filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>%
+    filter(tide == 'L') %>%
+    summarize(mlw = mean(level)) 
+
+  mhw <- HL.dublin %>% 
+    group_by(time = format(time, "%Y-%m")) %>% 
+    filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>%
+    filter(tide == 'H') %>%
+    summarize(mhw = mean(level))
+
+  dublin_monthly <- mlw
+  dublin_monthly$mhw <- mhw$mhw
+  dublin_monthly <- dublin_monthly %>% mutate(mtl = (mhw + mlw)/2)
+  
+  #time variable has changed to charcter because of previous steps and now we should get it seprately from the HL.dublin 💡📌📌📌
+  
+  test <- HL.dublin %>%   
+    group_by(time = floor_date(time, "month")) %>%
+    summarise(level = mean(level))
+  
+  dublin_monthly$time <- test$time
+  
+  
+  dublin_annual <- dublin_monthly %>% 
+    group_by(time = floor_date(time, "year"))%>%
+    summarise(mlw = mean(mlw), mhw = mean(mhw), mtl = mean(mtl))
+    
+   dublin_annual <- dublin_annual[-c(12,13),] #years 2018 and 2019 are removed because they don't have enough months 💡📌📌📌
+  
+  # Howth harbour : 💡📌📌📌
+  
+  mlw <- HL.howth %>% 
+  group_by(time = format(time, "%Y-%m")) %>% 
+  filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>%
+  filter(tide == 'L') %>%
+  summarize(mlw = mean(level)) 
+
+ mhw <- HL.howth %>% 
+  group_by(time = format(time, "%Y-%m")) %>% 
+  filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>%
+  filter(tide == 'H') %>%
+  summarize(mhw = mean(level))
+
+howth_monthly <- mlw
+howth_monthly$mhw <- mhw$mhw
+howth_monthly <- howth_monthly %>% mutate(mtl = (mhw + mlw)/2)
+
+test <- HL.howth %>%   
+  group_by(time = floor_date(time, "month")) %>%
+  summarise(level = mean(level))
+
+howth_monthly$time <- test$time
+
+howth_annual <- howth_monthly %>% 
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(mlw = mean(mlw), mhw = mean(mhw), mtl = mean(mtl))
+
+howth_annual <- howth_annual[-c(1,13,14),]
+
+# Ringsend: 💡📌📌📌
+
+mlw <- HL.rings %>% 
+  group_by(time = format(time, "%Y-%m")) %>% 
+  filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>%
+  filter(tide == 'L') %>%
+  summarize(mlw = mean(level)) 
+
+mhw <- HL.rings %>% 
+  group_by(time = format(time, "%Y-%m")) %>% 
+  filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>%
+  filter(tide == 'H') %>%
+  summarize(mhw = mean(level))
+
+rings_monthly <- mlw
+rings_monthly$mhw <- mhw$mhw
+rings_monthly <- rings_monthly %>% mutate(mtl = (mhw + mlw)/2)
+
+test <- HL.rings %>%   
+  group_by(time = floor_date(time, "month")) %>%
+  filter(((abs(sum(tide == 'H') - sum(tide == 'L'))/(sum(tide == 'H') + sum(tide == 'L')))) < 0.1) %>% 
+  summarise(level = mean(level))
+
+rings_monthly$time <- test$time
+
+rings_annual <- rings_monthly %>% 
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(mlw = mean(mlw), mhw = mean(mhw), mtl = mean(mtl))
+  
+  # The annual sets are ready and now they should be combined and plotted together:💡📌📌📌
