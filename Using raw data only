@@ -212,14 +212,15 @@ Howth <- Howth [-14,]
 Dublin <- Dublin [-13,]
 Rings <- Rings [-7,]
 
-##Merging datasets: 💡📌📌📌
-
-Sealevel = rbind(Howth, Rings, Dublin)
 
 ##Adjusting Dublin & Howth data to LAT: 💡📌📌📌
 
 Howth$m <- Howth$m + 2.599
 Dublin$m <- Dublin$m + 2.599
+
+##Merging datasets: 💡📌📌📌
+
+Sealevel = rbind(Howth, Rings, Dublin)
 
 ##Ploting results: 💡📌📌📌
 
