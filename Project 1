@@ -397,3 +397,154 @@ ggplot(DubRin_2015, aes(x = time, y = m, colour = as.factor(station_id))) +
   xlab('Year') +
   ylab('Mean Tide Level') +
   scale_color_discrete(name="Location")
+  
+  # Conduction t-test to compare Dublin Bay and Ringsend: 💡📌📌📌
+  
+  t.test(Dublin_2015$m, Rings_2015$m) #this test shows that Ringsends mean water level is roughly 0.08 m higher in 2015
+  
+  # First plot shows a different mean for Ringsend which can be due to obtaining the annual mean water level from monthly values
+  
+  #Checking the difference between calculating the water level mean for Ringsend from monthly values and daily ones💡📌📌📌
+  
+  Rings_2015_monthly <- Rings_2015 %>%   #first monthly values should be calculated
+  group_by(time = floor_date(time, "month"))%>%
+  summarise(m = mean(m))
+
+Rings_2015_annual <- Rings %>%   #from monthly values we can obtain annual values
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(m = mean(m))
+ 
+ 
+ 💡📌📌📌 #Due to significant difference of means by using different approaches, I am gonna calculate water level means using only daily values for all the regions: 
+ 
+ ##Ringsend: 💡📌📌📌
+
+Rings = rbind(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13,R14,R15,
+              R16,R17,R18,R19,R20,R21,R22,R27,R28,R29,R30,R31,R32,R33,R34,R35,R36)#R23, R24, R25, R26 are excluded assuming to be bad data
+
+Rings_2017 <- Rings %>% 
+  filter(year(time) == 2017) # Selecting only year 2017 to be pruned 
+
+Rings_2017 <- Rings_2017 %>% 
+  filter(month(time) != 5 & month(time) != 8) #Months 5 & 8 are also decided to be removed after data visualization 
+
+Rings <- Rings %>% 
+  filter(year(time) != 2017) #Removing faulty year 2017 data
+
+Rings_daily <- rbind(Rings, Rings_2017) #Adding the pruned year 2017 data
+
+##Reshaping the datasets:💡📌📌📌 
+
+Dublin_daily <- dublin_port[,c(3:5)]
+Howth_daily <- howth_harbour[,c(3:5)]
+
+names(Dublin_daily)[names(Dublin_daily) == "Water_Level_OD_Malin"] <- "m"
+names(Howth_daily)[names(Howth_daily) == "Water_Level_OD_Malin"] <- "m"
+
+Rings$station_id <- "Ringsend"
+Rings <- Rings[,c(1,3,2)]
+
+
+##Obtaining annual trends for each dataset:💡📌📌📌
+
+
+Dublin_daily_annual <- Dublin_daily %>%
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(m = mean(m), station_id = "Dublin")
+
+
+Howth_daily_annual <- Howth_daily %>%   #from monthly values we can obtain annual values
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(m = mean(m), station_id = "Howth")
+
+
+Rings_daily_annual <- Rings_daily %>%   #from monthly values we can obtain annual values
+  group_by(time = floor_date(time, "year"))%>%
+  summarise(m = mean(m), station_id = "Ringsend")
+
+## Removing year 2019 (which is the last row in all datasets) for not being complete:💡📌📌📌
+
+Howth_daily_annual <- Howth_daily_annual [-c(1,2,14),]
+Dublin_daily_annual <- Dublin_daily_annual [-c(1,13),]
+Rings_daily_annual <- Rings_daily_annual [-c(1,7),]
+
+
+##Adjusting Dublin & Howth data to LAT: 💡📌📌📌
+
+Howth_daily_annual$m <- Howth_daily_annual$m + 2.599
+Dublin_daily_annual$m <- Dublin_daily_annual$m + 2.599
+
+##Merging datasets: 💡📌📌📌
+
+Sealevel_daily_annual = rbind(Howth_daily_annual, Rings_daily_annual, Dublin_daily_annual)
+
+##Ploting results: 💡📌📌📌
+
+ggplot(Sealevel_daily_annual, aes(x = time, y = m, colour = as.factor(station_id))) +
+  geom_point() +
+  xlab('Year') +
+  ylab('Mean Water Level') +
+  stat_smooth() +
+  scale_color_discrete(name="Location")
+  
+  💡📌📌📌 # Comparing Ringsend's raw data to that of Dublin bay year by year: 
+  
+  Rings_2014 <- Rings %>% 
+  filter(year(time) == 2014)
+Rings_2015 <- Rings %>% 
+  filter(year(time) == 2015)
+Rings_2016 <- Rings %>% 
+  filter(year(time) == 2016)
+
+Rings_2017 <- Rings_2017 %>% mutate(station_id = 'Ringsend')
+Rings_2017 <- Rings_2017[,c(1,3,2)]
+
+Rings_2018 <- Rings %>% 
+  filter(year(time) == 2018)
+Rings_2019 <- Rings %>% 
+  filter(year(time) == 2019)
+
+Dublin_2014 <- dublin_port %>% 
+  filter(year(time) == 2014) 
+Dublin_2014 <- Dublin_2014[,c(3:5)]
+names(Dublin_2014)[names(Dublin_2014) == "Water_Level_OD_Malin"] <- "m"
+Dublin_2014$m <- Dublin_2014$m +2.599
+
+
+Dublin_2016 <- dublin_port %>% 
+  filter(year(time) == 2016)
+Dublin_2016 <- Dublin_2016[,c(3:5)]
+names(Dublin_2016)[names(Dublin_2016) == "Water_Level_OD_Malin"] <- "m"
+Dublin_2016$m <- Dublin_2016$m +2.599
+
+Dublin_2017 <- dublin_port %>% 
+  filter(year(time) == 2017)
+Dublin_2017 <- Dublin_2017[,c(3:5)]
+names(Dublin_2017)[names(Dublin_2017) == "Water_Level_OD_Malin"] <- "m"
+Dublin_2017$m <- Dublin_2017$m +2.599
+
+Dublin_2018 <- dublin_port %>% 
+  filter(year(time) == 2018)
+Dublin_2018 <- Dublin_2018[,c(3:5)]
+names(Dublin_2018)[names(Dublin_2018) == "Water_Level_OD_Malin"] <- "m"
+Dublin_2018$m <- Dublin_2018$m +2.599
+
+Dublin_2019 <- dublin_port %>% 
+  filter(year(time) == 2019)
+Dublin_2019 <- Dublin_2019[,c(3:5)]
+names(Dublin_2019)[names(Dublin_2019) == "Water_Level_OD_Malin"] <- "m"
+Dublin_2019$m <- Dublin_2019$m +2.599
+
+DubRin_2014 <- rbind(Dublin_2014, Rings_2014)
+DubRin_2016 <- rbind(Dublin_2016, Rings_2016)
+DubRin_2017 <- rbind(Dublin_2017, Rings_2017)
+DubRin_2018 <- rbind(Dublin_2018, Rings_2018)
+DubRin_2019 <- rbind(Dublin_2019, Rings_2019)
+
+ggplot(DubRin_2019, aes(x = time, y = m, colour = as.factor(station_id))) +
+  geom_point() +
+  xlab('Year') +
+  ylab('Mean Tide Level') +
+  scale_color_discrete(name="Location")
+  
+ 
