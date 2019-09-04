@@ -341,4 +341,59 @@ rings_annual <- rings_monthly %>%
   group_by(time = floor_date(time, "year"))%>%
   summarise(mlw = mean(mlw), mhw = mean(mhw), mtl = mean(mtl))
   
-  # The annual sets are ready and now they should be combined and plotted together:💡📌📌📌
+ # The annual sets are ready and now they should be combined and plotted together:💡📌📌📌
+  
+  rings_annual <- rings_annual %>% mutate(location = 'Ringsend')
+
+howth_annual <- howth_annual %>% mutate(location = 'Howth harbour') #Adjusting to a new reference point 
+howth_annual[,c(2,3,4)] <- howth_annual[,c(2,3,4)] + 2.599
+
+dublin_annual <- dublin_annual %>% mutate(location = 'Dublin bay') #Adjusting to a new reference point
+dublin_annual[,c(2,3,4)] <- dublin_annual[,c(2,3,4)] + 2.599
+
+Sealevel2 <- rbind(howth_annual, rings_annual, dublin_annual)
+
+ggplot(Sealevel2, aes(x = time, y = mtl, colour = as.factor(location))) +
+  stat_smooth(method = 'lm') +
+  xlab('Year') +
+  ylab('Mean Tide Level') +
+  stat_smooth() +
+  scale_color_discrete(name="Location")
+
+# Checking linear regression parameteres for each plot: 💡📌📌📌
+
+lm(mtl ~ time, data = rings_annual)
+lm(mtl ~ time, data = howth_annual)
+lm(mtl ~ time, data = dublin_annual)
+
+
+# Further investigations: 💡📌📌📌
+# Dublin bay and Howth harbour seem to have a roughly robust trends for both of the previous approaches.💡📌📌📌
+# However Ringsend seems to have some problems. The variation between the two approaches for Ringsend is significant. 💡📌📌📌
+# In Ringsend data, year 2015 worth more scrunity. 💡📌📌📌
+
+# Checking Ringsend 2015 data and comparing it to that of Dublin bay: 💡📌📌📌
+ 
+ Rings_2015 <- rbind(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13,R14,R15,
+ R16,R17,R18,R19,R20,R21,R22,R27,R28,R29,R30,R31,R32,R33,R34,R35,R36) %>%
+ filter(year(time) == 2015)
+ 
+ ggplot(Rings_2015, aes(x = time, y = m)) + geom_point()
+ 
+ Rings_2015 <- Rings_2015 %>% mutate(station_id = "Ringsend")
+ Rings_2015 <- Rings_2015[,c(1,3,2)]
+
+Dublin_2015 <- dublin_port %>% 
+                filter(year(time) == 2015) 
+
+Dublin_2015 <- Dublin_2015[,c(3:5)]
+names(Dublin_2015)[names(Dublin_2015) == "Water_Level_OD_Malin"] <- "m"
+Dublin_2015$m <- Dublin_2015$m +2.599
+
+DubRin_2015 <- rbind(Dublin_2015, Rings_2015)
+
+ggplot(DubRin_2015, aes(x = time, y = m, colour = as.factor(station_id))) +
+  geom_point() +
+  xlab('Year') +
+  ylab('Mean Tide Level') +
+  scale_color_discrete(name="Location")
