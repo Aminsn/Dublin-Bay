@@ -340,4 +340,24 @@ rings_annual <- rings_monthly %>%
   group_by(time = floor_date(time, "year"))%>%
   summarise(mlw = mean(mlw), mhw = mean(mhw), mtl = mean(mtl))
   
-  # The annual sets are ready and now they should be combined and plotted together:💡📌📌📌
+  rings_annual <- rings_annual[-c(1,7),]
+
+  
+# The annual sets are ready and now they should be combined and plotted together:💡📌📌📌
+
+rings_annual <- rings_annual %>% mutate(location = 'Ringsend')
+
+howth_annual <- howth_annual %>% mutate(location = 'Howth harbour')
+howth_annual[,c(2,3,4)] <- howth_annual[,c(2,3,4)] + 2.599
+
+dublin_annual <- dublin_annual %>% mutate(location = 'Dublin bay')
+dublin_annual[,c(2,3,4)] <- dublin_annual[,c(2,3,4)] + 2.599
+
+Sealevel2 <- rbind(howth_annual, rings_annual, dublin_annual)
+
+ggplot(Sealevel2, aes(x = time, y = mtl, colour = as.factor(location))) +
+  geom_point() +
+  xlab('Year') +
+  ylab('Mean Tide Level') +
+  stat_smooth() +
+  scale_color_discrete(name="Location")
