@@ -547,4 +547,47 @@ ggplot(DubRin_2019, aes(x = time, y = m, colour = as.factor(station_id))) +
   ylab('Mean Tide Level') +
   scale_color_discrete(name="Location")
   
+  
+  
+  
+  
+  
+  
+  💡📌📌📌 # Comparing monthly trends of the regions:
+  
+ Dublin_raw_monthly <- dublin_port[,c(3:5)]
+names(Dublin_raw_monthly)[names(Dublin_raw_monthly) == "Water_Level_OD_Malin"] <- "m"
+Dublin_raw_monthly <- Dublin_raw_monthly %>%
+  group_by(time = floor_date(time, "month"))%>%
+  summarise(m = mean(m), station_id = "Dublin")
+
+Howth_raw_monthly <- howth_harbour[,c(3:5)]
+names(Howth_raw_monthly)[names(Howth_raw_monthly) == "Water_Level_OD_Malin"] <- "m"
+Howth_raw_monthly <- Howth_raw_monthly %>%   #first monthly values should be calculated
+  group_by(time = floor_date(time, "month"))%>%
+  summarise(m = mean(m), station_id = "Howth")
+
+
+Rings_raw_monthly <- Rings %>%   #first monthly values should be calculated
+  group_by(time = floor_date(time, "month"))%>%
+  summarise(m = mean(m), station_id = "Ringsend")
+
+##Adjusting Dublin & Howth data to LAT: 
+
+Howth_raw_monthly$m <- Howth_raw_monthly$m + 2.599
+Dublin_raw_monthly$m <- Dublin_raw_monthly$m + 2.599
+
+##Merging datasets: 💡📌📌📌
+
+Sealevel_raw_monthly = rbind(Howth_raw_monthly, Rings_raw_monthly, Dublin_raw_monthly)
+
+##Ploting results: 💡📌📌📌
+
+ggplot(Sealevel_raw_monthly, aes(x = time, y = m, colour = as.factor(station_id))) +
+  geom_point() +
+  xlab('Time') +
+  ylab('Mean Water Level') +
+  stat_smooth() +
+  scale_color_discrete(name="Location")
+  
  
