@@ -590,4 +590,13 @@ ggplot(Sealevel_raw_monthly, aes(x = time, y = m, colour = as.factor(station_id)
   stat_smooth() +
   scale_color_discrete(name="Location")
   
+  💡📌📌📌 A new attempt to use group_by and a condition: 
+  
+ Ringsend_monthly <- Rings %>% 
+                    mutate(month = format(time, "%Y-%m")) %>%
+                    group_by(month) %>%
+                    mutate(days = n_distinct(day(time))) %>%
+                    filter(days >15) %>%
+                    summarise(m = mean(m))
+  
  
